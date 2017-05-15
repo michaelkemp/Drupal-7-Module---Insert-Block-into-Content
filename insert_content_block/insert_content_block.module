@@ -1,0 +1,103 @@
+<?php
+
+/*
+ *
+ * implements hook_help($path, $arg)
+ *
+*/
+function insert_content_block_help($path, $arg){
+    switch($path){
+        case "admin/help#insert_content_block":
+            return '<p>' . t("Replace Block Tokens with Block Content in Node Content") . '</p>';
+            break;
+    }
+}
+
+// =========================== MENU - EXTRA PAGES =========================== 
+/*
+ * 
+ * Implementation of hook_menu()
+ */
+function insert_content_block_menu() {
+    $items = array();
+
+    $items['admin/config/content/insert_content_block'] = array(
+        'title' => 'Insert Content Block Config',
+        'description' => 'Block Tokens to insert into Content for Replacement',
+        'page callback' => 'drupal_get_form',
+        'page arguments' => array('insert_content_block_form'),
+        'access arguments' => array('access administration pages'),
+        'type' => MENU_NORMAL_ITEM,
+    );
+    
+    return $items;
+}
+
+function insert_content_block_form($form, &$form_state) {
+    module_load_include('inc', 'block', 'block.admin');
+    global $theme_key;
+    $ableBlocks = block_admin_display_prepare_blocks($theme_key);
+    
+    $html = "<table>";
+    $html.= "<tr><th>Block</th><th>Token</th></tr>";
+    foreach($ableBlocks as $block) {
+        $module = isset($block["module"]) ? trim($block["module"]) : "";
+        $delta = isset($block["delta"]) ? trim($block["delta"]) : "";
+        $info = isset($block["info"]) ? trim($block["info"]) : "";
+        $token = "[:${module}::${delta}:]";
+        $html.="<tr><td>${info}</td><td>${token}</td></tr>";
+    }
+    $html.="</table>";
+    
+    $form['insert_content_block_TOKENS'] = array(
+        '#markup' => "<div class='form-item'><label>Available Tokens</label>${html}</div>"
+    );
+
+    return system_settings_form($form);
+}
+
+function insert_content_block_preprocess_field(&$variables) {
+    
+    $editing = isset($_GET["edit"]) ? true: false;
+    $nid = (arg(0) == 'node' && is_numeric(arg(1))) ? arg(1) : 0;
+    $admin = path_is_admin(current_path());
+    
+    // If is a node AND not in backend AND not editing
+    if (($nid != 0) && (!$admin) && (!$editing)) {
+
+        // =========== GET TOKENS ===========
+        module_load_include('inc', 'block', 'block.admin');
+        global $theme_key;
+        $ableBlocks = block_admin_display_prepare_blocks($theme_key);
+        
+        $blocksArray = array();
+        foreach($ableBlocks as $block) {
+            $module = isset($block["module"]) ? trim($block["module"]) : "";
+            $delta = isset($block["delta"]) ? trim($block["delta"]) : "";
+            $token = "[:${module}::${delta}:]";
+            $blocksArray[$token]['module'] = $module;
+            $blocksArray[$token]['delta'] = $delta;
+        }
+    
+    
+        $markup = isset($variables['items'][0]['#markup']) ? $variables['items'][0]['#markup'] : "";
+        if ($markup != "") {
+            $block = "";
+            foreach($blocksArray as $token=>$value) {
+                if (stripos($markup,$token) !== FALSE) {
+                    $rendBlock = module_invoke($blocksArray[$token]['module'], 'block_view', $blocksArray[$token]['delta']);
+                    if (isset($rendBlock['content'])) {
+                        if (is_array($rendBlock['content'])) {
+                            $block.= "<div class='container inserted-block'>";
+                            $block.= render($rendBlock['content']);
+                            $block.= "</div>";
+                            $markup = str_ireplace($token,$block,$markup);
+                            $variables['items'][0]['#markup'] = $markup;
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
