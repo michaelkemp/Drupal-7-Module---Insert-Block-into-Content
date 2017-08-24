@@ -1,7 +1,7 @@
 name = "Insert Content Block"
 description = "Insert blocks into content via Token Replacement"
 core = "7.x"
-version = 1.0
+version = 1.15
 
 configure = admin/config/content/insert_content_block
 

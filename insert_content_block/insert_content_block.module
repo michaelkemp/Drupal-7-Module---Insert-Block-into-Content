@@ -82,13 +82,13 @@ function insert_content_block_preprocess_field(&$variables) {
     
         $markup = isset($variables['items'][0]['#markup']) ? $variables['items'][0]['#markup'] : "";
         if ($markup != "") {
-            $block = "";
             foreach($blocksArray as $token=>$value) {
                 if (stripos($markup,$token) !== FALSE) {
                     $rendBlock = module_invoke($blocksArray[$token]['module'], 'block_view', $blocksArray[$token]['delta']);
                     if (isset($rendBlock['content'])) {
                         if (is_array($rendBlock['content'])) {
-                            $block.= "<div class='container inserted-block'>";
+                            $block = "";
+                            $block.= "<div class='inserted-block'>";
                             $block.= render($rendBlock['content']);
                             $block.= "</div>";
                             $markup = str_ireplace($token,$block,$markup);
